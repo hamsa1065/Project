@@ -14,7 +14,7 @@ app = Flask(__name__)
 CORS(app)  # allow Next.js frontend to call this
 
 # ── Load model once at startup ──────────────────────────────────────
-MODEL_PATH = Path(__file__).parent / "dementia_model.pkl"
+MODEL_PATH = Path(__file__).parent / "python" / "dementia_model.pkl"
 model = label_encoder = FEATURES = MEDIANS = None
 
 def load_model():
