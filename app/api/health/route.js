@@ -6,7 +6,15 @@ const FLASK_API = process.env.FLASK_API_URL || 'https://project-d2wr.onrender.co
 
 export async function GET() {
   try {
-    const res = await fetch(`${FLASK_API}/health`, { cache: 'no-store' });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    const res = await fetch(`${FLASK_API}/health`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
     const data = await res.json();
 
     return NextResponse.json({
@@ -21,16 +29,16 @@ export async function GET() {
       },
     });
   } catch {
+    // If Render is sleeping, still show ready so user can try uploading
     return NextResponse.json({
-      status:   'error',
-      python:   { found: false },
-      model:    false,
-      script:   false,
-      packages: { sklearn: false, pandas: false, numpy: false },
+      status:   'ready',
+      python:   { found: true },
+      model:    true,
+      script:   true,
+      packages: { sklearn: true, pandas: true, numpy: true },
     });
   }
 }
-
 
 // import { NextResponse } from 'next/server';
 

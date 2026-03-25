@@ -3,6 +3,16 @@ import { NextResponse } from 'next/server';
 export const dynamic    = 'force-dynamic';
 export const maxDuration = 120;
 
+// ✅ Fix: increase body size limit for large ZIP files
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+    responseLimit: '50mb',
+  },
+};
+
 const FLASK_API = process.env.FLASK_API_URL || 'https://project-d2wr.onrender.com';
 
 export async function POST(request) {
@@ -25,10 +35,26 @@ export async function POST(request) {
     const flaskForm = new FormData();
     flaskForm.append('zipFile', file);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 115000); // 115s timeout
+
     const res = await fetch(`${FLASK_API}/diagnose`, {
       method: 'POST',
       body:   flaskForm,
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+
+    // Check if response is actually JSON before parsing
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await res.text();
+      console.error('Non-JSON response from Flask:', text.slice(0, 200));
+      return NextResponse.json(
+        { error: 'Server returned an unexpected response. The backend may still be waking up — please try again in 30 seconds.' },
+        { status: 502 }
+      );
+    }
 
     const data = await res.json();
 
@@ -43,13 +69,18 @@ export async function POST(request) {
 
   } catch (err) {
     console.error('Diagnose proxy error:', err);
+    if (err.name === 'AbortError') {
+      return NextResponse.json(
+        { error: 'Request timed out. The backend is waking up — please try again in 30 seconds.' },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       { error: err.message || 'Unexpected server error.' },
       { status: 500 }
     );
   }
 }
-
 
 // import { NextResponse } from 'next/server';
 
