@@ -2,7 +2,8 @@
 Dementia BioTracker — Flask Backend
 Deploy this on Render.com
 """
-
+import logging
+logging.basicConfig(level=logging.DEBUG)
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import tempfile, os, sys, pickle, zipfile
@@ -31,7 +32,12 @@ def load_model():
     print("✅ Model loaded successfully")
     return True
 
-load_model()
+try:
+    load_model()
+except Exception as e:
+    import traceback
+    print("STARTUP ERROR:", e, file=sys.stderr)
+    traceback.print_exc()
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
