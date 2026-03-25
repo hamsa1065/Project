@@ -18,39 +18,39 @@ CORS(app)  # allow Next.js frontend to call this
 MODEL_PATH = Path(__file__).parent / "python" / "dementia_model.pkl"
 model = label_encoder = FEATURES = MEDIANS = None
 
-def load_model():
-    global model, label_encoder, FEATURES, MEDIANS
-    if not MODEL_PATH.exists():
-        print(f"ERROR: Model not found at {MODEL_PATH}", file=sys.stderr)
-        return False
-    try:
-        with open(MODEL_PATH, "rb") as f:
-            saved = pickle.load(f)
-    except Exception as e:
-        print(f"ERROR loading pickle: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        return False
-    model         = saved["model"]
-    label_encoder = saved["label_encoder"]
-    FEATURES      = saved["features"]
-    MEDIANS       = saved["medians"]
-    print("✅ Model loaded successfully")
-    return True
+
 
 def load_model():
     global model, label_encoder, FEATURES, MEDIANS
     if not MODEL_PATH.exists():
         print(f"ERROR: Model not found at {MODEL_PATH}", file=sys.stderr)
         return False
+
+    import numpy as np
+
+    class CompatUnpickler(pickle.Unpickler):
+        def find_class(self, module, name):
+            if module == 'numpy.random._mt19937' and name == 'MT19937':
+                return np.random.MT19937
+            if module == 'numpy.random._pcg64' and name == 'PCG64':
+                return np.random.PCG64
+            return super().find_class(module, name)
+
     try:
         with open(MODEL_PATH, "rb") as f:
-            saved = pickle.load(f)
+            saved = CompatUnpickler(f).load()
+        model         = saved["model"]
+        label_encoder = saved["label_encoder"]
+        FEATURES      = saved["features"]
+        MEDIANS       = saved["medians"]
+        print("✅ Model loaded successfully")
+        return True
     except Exception as e:
         print(f"ERROR loading pickle: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)
-        return False    
+        return False
+
 
 try:
     load_model()
@@ -58,8 +58,8 @@ except Exception as e:
     import traceback
     print("STARTUP ERROR:", e, file=sys.stderr)
     traceback.print_exc()
-
-
+    
+    
 # ── Helpers ─────────────────────────────────────────────────────────
 def find_file(zf, keyword):
     for name in zf.namelist():
