@@ -276,6 +276,21 @@ def diagnose():
 
     finally:
         os.unlink(tmp_path)
+        
+@app.route("/debug", methods=["GET"])
+def debug():
+    import os
+    cwd = os.getcwd()
+    files = []
+    for root, dirs, filenames in os.walk(cwd):
+        for f in filenames:
+            files.append(os.path.join(root, f).replace(cwd, ''))
+    return jsonify({
+        "cwd": cwd,
+        "model_path": str(MODEL_PATH),
+        "model_exists": MODEL_PATH.exists(),
+        "all_files": files[:50]
+    })        
 
 
 if __name__ == "__main__":
