@@ -23,14 +23,34 @@ def load_model():
     if not MODEL_PATH.exists():
         print(f"ERROR: Model not found at {MODEL_PATH}", file=sys.stderr)
         return False
-    with open(MODEL_PATH, "rb") as f:
-        saved = pickle.load(f)
+    try:
+        with open(MODEL_PATH, "rb") as f:
+            saved = pickle.load(f)
+    except Exception as e:
+        print(f"ERROR loading pickle: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return False
     model         = saved["model"]
     label_encoder = saved["label_encoder"]
     FEATURES      = saved["features"]
     MEDIANS       = saved["medians"]
     print("✅ Model loaded successfully")
     return True
+
+def load_model():
+    global model, label_encoder, FEATURES, MEDIANS
+    if not MODEL_PATH.exists():
+        print(f"ERROR: Model not found at {MODEL_PATH}", file=sys.stderr)
+        return False
+    try:
+        with open(MODEL_PATH, "rb") as f:
+            saved = pickle.load(f)
+    except Exception as e:
+        print(f"ERROR loading pickle: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return False    
 
 try:
     load_model()
