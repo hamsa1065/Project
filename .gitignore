@@ -1,4 +1,8 @@
-# create this file manually in VS Code as .gitignore
 node_modules/
 .next/
+.env
+.env.local
 *.pkl
+__pycache__/
+*.pyc
+.DS_Store

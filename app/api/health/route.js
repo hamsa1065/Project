@@ -1,57 +1,30 @@
 import { NextResponse } from 'next/server';
-import { existsSync }   from 'fs';
-import { join }         from 'path';
-import { exec }         from 'child_process';
-import { promisify }    from 'util';
-
-const execAsync = promisify(exec);
 
 export const dynamic = 'force-dynamic';
 
-async function findPython() {
-  const candidates = process.platform === 'win32'
-    ? ['python', 'python3', 'py']
-    : ['python3', 'python'];
-
-  for (const cmd of candidates) {
-    try {
-      const { stdout, stderr } = await execAsync(`${cmd} --version`, { timeout: 5000 });
-      const out = stdout + stderr;
-      if (out.toLowerCase().includes('python')) return { cmd, version: out.trim() };
-    } catch { /* try next */ }
-  }
-  return null;
-}
-
-async function checkPackages(python) {
-  const packages = ['sklearn', 'pandas', 'numpy'];
-  const results  = {};
-  for (const pkg of packages) {
-    try {
-      await execAsync(`"${python}" -c "import ${pkg}"`, { timeout: 8000 });
-      results[pkg] = true;
-    } catch {
-      results[pkg] = false;
-    }
-  }
-  return results;
-}
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_URL;
 
 export async function GET() {
-  const pythonDir  = join(process.cwd(), 'python');
-  const scriptPath = join(pythonDir, 'dementia_predict.py');
-  const modelPath  = join(pythonDir, 'dementia_model.pkl');
+  try {
+    if (!BACKEND_URL) {
+      return NextResponse.json({
+        status: 'error',
+        error: 'BACKEND_URL not set in environment variables',
+        python: false, model: false, sklearn: false, pandas: false, numpy: false,
+      });
+    }
 
-  const pythonInfo = await findPython();
-  const packages   = pythonInfo ? await checkPackages(pythonInfo.cmd) : {};
+    const response = await fetch(`${BACKEND_URL}/health`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    const data = await response.json();
+    return NextResponse.json(data);
 
-  return NextResponse.json({
-    status      : pythonInfo && existsSync(modelPath) && existsSync(scriptPath) ? 'ready' : 'error',
-    python      : pythonInfo ? { found: true, cmd: pythonInfo.cmd, version: pythonInfo.version } : { found: false },
-    model       : existsSync(modelPath),
-    script      : existsSync(scriptPath),
-    packages,
-    platform    : process.platform,
-    cwd         : process.cwd(),
-  });
+  } catch {
+    return NextResponse.json({
+      status: 'error',
+      error: 'Cannot reach backend. It may be starting up — wait 30s and refresh.',
+      python: false, model: false, sklearn: false, pandas: false, numpy: false,
+    });
+  }
 }
